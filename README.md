@@ -65,102 +65,60 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 
 ## Prerequisites
 
-- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) configured with credentials
-- [Terraform](https://www.terraform.io/) >= 1.5
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Docker](https://www.docker.com/) (to build and push images)
-- [Helm](https://helm.sh/) (for ALB Controller)
-
-### AWS credentials
-
-```bash
-aws configure
-# AWS Access Key ID: your-key
-# AWS Secret Access Key: your-secret
-# Default region: us-east-1
-# Default output: json
-```
-
-Your IAM user needs permissions for: EKS, EC2, VPC, RDS, ElastiCache, S3, CloudFront, WAF, CloudTrail, Secrets Manager, ECR, CloudWatch, IAM, DynamoDB, KMS.
+- [Docker](https://www.docker.com/) — that's it. Everything else runs inside the deploy container.
+- An AWS account with an IAM user that has permissions for: EKS, EC2, VPC, RDS, ElastiCache, S3, CloudFront, WAF, CloudTrail, Secrets Manager, ECR, CloudWatch, IAM, DynamoDB, KMS.
 
 ## Usage
 
-### 1. Configure the DB password
+The only prerequisite is **Docker**. Everything else (Terraform, kubectl, Helm, AWS CLI) runs inside a deploy container.
+
+### 1. Set your AWS credentials
 
 ```bash
-export TF_VAR_db_password="YourSecurePassword123!"
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
+export AWS_DEFAULT_REGION=us-east-1
 ```
 
-### 2. Create remote backend (once)
+### 2. Deploy everything (one command)
 
 ```bash
-make init-backend
+make deploy
 ```
 
-### 3. Preview what will be created (free)
+This single command:
+1. Builds a Docker container with all prerequisites
+2. Creates the S3 backend for Terraform state
+3. Deploys all 12 AWS services (VPC, EKS, RDS, Redis, S3, CloudFront, WAF, etc.)
+4. Generates a random DB password (or uses `TF_VAR_db_password` if set)
+5. Builds and pushes app images to ECR (auto-login, no manual steps)
+6. Configures kubectl and shows cluster status
+
+### 3. Check status
 
 ```bash
-make plan-dev
+make status
 ```
 
-### 4. Deploy
+### 4. Destroy when done
 
 ```bash
-make apply-dev
-```
-
-### 5. Push app images to ECR
-
-```bash
-# Get ECR URLs from output
-make show-dev
-
-# Login to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-
-# Build and push
-docker build -t <ecr-url>/backend:v1 app/backend/
-docker push <ecr-url>/backend:v1
-
-docker build -t <ecr-url>/frontend:v1 app/frontend/
-docker push <ecr-url>/frontend:v1
-```
-
-### 6. Connect to the cluster
-
-```bash
-aws eks update-kubeconfig --name eks-platform-dev --region us-east-1
-kubectl get nodes
-```
-
-### 7. Access the app
-
-```bash
-# CloudFront URL (for static assets)
-terraform -chdir=environments/dev output cloudfront_domain
-
-# ALB URL (for the app)
-kubectl get ingress -A
-```
-
-### 8. Destroy when done
-
-```bash
-make destroy-dev
+make destroy
 ```
 
 ### All commands
 
 ```bash
-make fmt            # Format all .tf files
-make validate       # Validate all environments
-make plan-dev       # Preview dev changes
-make apply-dev      # Deploy dev
-make show-dev       # Show outputs
-make destroy-dev    # Tear down dev
-make plan-prod      # Preview prod changes
-make apply-prod     # Deploy prod
-make destroy-prod   # Tear down prod
+make deploy         # Deploy everything to dev (infra + app)
+make deploy-prod    # Deploy everything to prod
+make infra          # Deploy only infrastructure (no images)
+make push           # Build and push images to ECR
+make status         # Show cluster status and outputs
+make destroy        # Destroy dev environment
+make destroy-prod   # Destroy prod environment
+make test           # Run API tests locally
+make lint           # Lint API code locally
+make validate       # Validate Terraform locally
 ```
 
 ## CI/CD
