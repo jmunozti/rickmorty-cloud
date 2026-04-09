@@ -100,20 +100,23 @@ module "alb" {
   region       = var.region
 }
 
-# --- RDS PostgreSQL (prod: multi-AZ) ---
+# --- Aurora Serverless v2 (prod: higher min, replica for HA) ---
 module "rds" {
   source                     = "../../modules/rds"
   name                       = local.cluster_name
   vpc_id                     = module.vpc.vpc_id
   subnet_ids                 = module.vpc.private_subnet_ids
   allowed_security_group_ids = [module.eks.cluster_security_group_id]
-  instance_class             = "db.t3.medium"
   db_name                    = "appdb"
   db_username                = "dbadmin"
   db_password                = var.db_password
-  multi_az                   = true
+  min_capacity               = 2
+  max_capacity               = 16
+  replica_count              = 1
+  deletion_protection        = true
   skip_final_snapshot        = false
   backup_retention_days      = 14
+  backup_tag                 = "weekly"
 }
 
 # --- Redis (HA: 1 primary + 1 replica, multi-AZ, automatic failover) ---
@@ -170,6 +173,15 @@ module "observability" {
   region        = var.region
   cluster_name  = local.cluster_name
   sns_topic_arn = module.compliance.sns_topic_arn
+}
+
+# --- AWS Backup (automated backup plans) ---
+module "backup" {
+  source                = "../../modules/backup"
+  name                  = local.cluster_name
+  retention_days        = 30
+  weekly_retention_days = 365
+  cold_storage_after    = 90
 }
 
 # --- SOC 2 Compliance (Config + GuardDuty + Config Rules + SNS Alerts) ---

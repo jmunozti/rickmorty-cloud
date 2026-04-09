@@ -100,17 +100,20 @@ module "alb" {
 }
 
 # --- RDS PostgreSQL (free tier) ---
+# --- Aurora Serverless v2 (scales to near-zero when idle) ---
 module "rds" {
   source                     = "../../modules/rds"
   name                       = local.cluster_name
   vpc_id                     = module.vpc.vpc_id
   subnet_ids                 = module.vpc.private_subnet_ids
   allowed_security_group_ids = [module.eks.cluster_security_group_id]
-  instance_class             = "db.t3.micro"
   db_name                    = "appdb"
   db_username                = "dbadmin"
   db_password                = var.db_password
-  multi_az                   = false
+  min_capacity               = 0.5
+  max_capacity               = 4
+  replica_count              = 0
+  skip_final_snapshot        = true
 }
 
 # --- Redis (free tier) ---
@@ -166,6 +169,14 @@ module "observability" {
   region        = var.region
   cluster_name  = local.cluster_name
   sns_topic_arn = module.compliance.sns_topic_arn
+}
+
+# --- AWS Backup (automated backup plans) ---
+module "backup" {
+  source                = "../../modules/backup"
+  name                  = local.cluster_name
+  retention_days        = 7
+  weekly_retention_days = 30
 }
 
 # --- SOC 2 Compliance (Config + GuardDuty + Config Rules) ---

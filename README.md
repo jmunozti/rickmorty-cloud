@@ -29,15 +29,16 @@ A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + 
 
 This is how real companies run on AWS. Every module follows AWS Well-Architected best practices:
 
-- **16 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Compliance
+- **17 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Compliance
 - **SOC 2 ready** — AWS Config (6 rules), GuardDuty threat detection, CloudTrail audit, SNS security alerts
 - **One-command deploy** — Docker container handles all prerequisites, `make deploy` does everything
 - **Remote state** — S3 with KMS encryption + DynamoDB locking
 - **Multi-environment** — Dev (spot, 2 AZs, minimal) vs Prod (on-demand, 3 AZs, HA)
-- **High availability** — Multi-AZ RDS, Redis auto-failover, NAT per AZ, min 3 nodes in prod
+- **High availability** — Aurora multi-AZ with read replica, Redis auto-failover, NAT per AZ, min 3 nodes in prod
 - **Security** — WAF (managed rules + rate limiting), KMS encryption, IRSA, VPC flow logs, CloudTrail, GuardDuty, non-root containers, ECR scan-on-push, Secrets Manager
 - **Observability** — CloudWatch dashboards + alarms, X-Ray distributed tracing, SNS notifications
-- **Cost optimization** — Spot instances in dev, S3 lifecycle policies (Standard → IA → Glacier)
+- **Cost optimization** — Aurora Serverless v2 (scales to near-zero), Spot instances in dev, S3 lifecycle policies (→ IA → Glacier)
+- **Automated backups** — AWS Backup with daily + weekly plans, cold storage lifecycle
 
 ## The App
 
@@ -59,7 +60,8 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 | **VPC** | `modules/vpc` | Public/private subnets, NAT Gateway per AZ, VPC Flow Logs to CloudWatch |
 | **IAM** | `modules/iam` | Cluster/node roles, IRSA for ALB Controller + External Secrets Operator |
 | **ALB** | `modules/alb` | AWS Load Balancer Controller via Helm |
-| **RDS** | `modules/rds` | PostgreSQL 16, encrypted at rest, automated backups, multi-AZ (prod) |
+| **Aurora Serverless v2** | `modules/rds` | PostgreSQL 16, auto-scaling ACUs, encrypted, read replica (prod) |
+| **AWS Backup** | `modules/backup` | Daily + weekly backup plans, cold storage lifecycle |
 | **ElastiCache** | `modules/redis` | Redis 7.1 cache layer |
 | **S3** | `modules/s3` | Asset storage, versioning, lifecycle policies (→ IA → Glacier), IRSA policy |
 | **CloudFront** | `modules/cloudfront` | CDN with Origin Access Control, HTTPS redirect, WAF integration |
@@ -80,7 +82,8 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 |--|-----|------|
 | AZs | 2 | 3 |
 | Nodes | t3.small SPOT (1-4) | t3.large ON_DEMAND (3-10) |
-| RDS | db.t3.micro, single AZ | db.t3.medium, multi-AZ, 14-day backups |
+| Aurora | Serverless v2 (0.5-4 ACUs), no replica | Serverless v2 (2-16 ACUs), 1 read replica |
+| Backups | Daily (7 days) | Daily (30 days) + Weekly (1 year, cold storage) |
 | Redis | cache.t3.micro, single node | cache.t3.small, 1 replica, auto-failover, multi-AZ |
 | NAT Gateway | 1 per AZ (2) | 1 per AZ (3) |
 | WAF rate limit | 2,000 req/5min | 5,000 req/5min |
@@ -167,7 +170,8 @@ rickmorty-cloud/
 │   ├── eks/                       # EKS, node groups, OIDC, KMS
 │   ├── iam/                       # Roles, IRSA (ALB, External Secrets)
 │   ├── alb/                       # AWS Load Balancer Controller
-│   ├── rds/                       # PostgreSQL 16, encrypted, backups
+│   ├── rds/                       # Aurora Serverless v2, auto-scaling, replicas
+│   ├── backup/                    # AWS Backup daily + weekly plans
 │   ├── redis/                     # ElastiCache Redis 7.1
 │   ├── s3/                        # Asset bucket + lifecycle + IRSA policy
 │   ├── cloudfront/                # CDN + OAC + S3 policy
