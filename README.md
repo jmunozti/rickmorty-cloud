@@ -1,10 +1,23 @@
 # rickmorty-cloud
 
-> Rick and Morty Explorer on AWS — 14 Terraform modules, EKS, RDS, Redis, S3, CloudFront, WAF, X-Ray, and more
+> Rick and Morty Explorer on AWS — 16 Terraform modules, EKS, RDS, Redis, S3, CloudFront, WAF, X-Ray, and more
 
-**Status: Infrastructure code complete. Pending AWS deployment and live testing.**
+**Status: Work in progress**
 
-All Terraform modules are written, validated (`terraform validate`), and security-scanned (tfsec + checkov). The app (FastAPI + Next.js) is tested locally with 13 passing tests. AWS deployment is next.
+What's done:
+- 16 Terraform modules written and validated (`terraform validate`)
+- Security scanning configured (tfsec + checkov)
+- FastAPI backend with 13 passing tests
+- Next.js frontend with shadcn/ui and dark mode
+- Helm chart for app deployment (Deployments, Services, Ingress, HPA, PDB, NetworkPolicies)
+- Deploy container for one-command deployment
+- CI/CD pipeline with 5 parallel jobs
+
+What's next:
+- AWS account setup and live deployment
+- End-to-end testing on EKS
+- Screenshots of running app and Grafana dashboards
+- Custom domain with Route 53 + ACM certificate
 
 A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + Next.js) on AWS EKS, with every production service you'd expect: database, cache, CDN, firewall, audit trail, tracing, monitoring, and secrets management.
 
