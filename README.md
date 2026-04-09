@@ -17,7 +17,6 @@ What's next:
 - AWS account setup and live deployment
 - End-to-end testing on EKS
 - Screenshots of running app and Grafana dashboards
-- Custom domain with Route 53 + ACM certificate
 
 A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + Next.js) on AWS EKS, with every production service you'd expect: database, cache, CDN, firewall, audit trail, tracing, monitoring, and secrets management.
 
