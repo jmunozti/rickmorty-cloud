@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install poetry
+      - working-directory: app/backend
+        run: poetry install
+      - working-directory: app/backend
+        run: poetry run ruff check .
+      - working-directory: app/backend
+        run: poetry run pytest tests/ -v
+
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t rickmorty-api:ci app/backend/
+      - name: Trivy scan backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: rickmorty-api:ci
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build frontend image
+        run: docker build -t rickmorty-web:ci app/frontend/
+      - name: Trivy scan frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: rickmorty-web:ci
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  terraform-validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+      - name: Terraform init (${{ matrix.env }})
+        working-directory: environments/${{ matrix.env }}
+        run: terraform init -backend=false
+      - name: Terraform validate (${{ matrix.env }})
+        working-directory: environments/${{ matrix.env }}
+        run: terraform validate
+
+  terraform-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: tfsec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          soft_fail: true
+      - name: checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: modules/
+          soft_fail: true
