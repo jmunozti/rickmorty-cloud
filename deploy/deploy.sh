@@ -21,12 +21,17 @@ check_aws() {
 }
 
 init_backend() {
-    log "Initializing Terraform backend (S3 + DynamoDB)..."
-    cd /infra/backend
-    terraform init
-    terraform apply -auto-approve
-    cd /infra
-    log "Backend ready"
+    BUCKET="eks-platform-tfstate"
+    if aws s3 ls "s3://$BUCKET" > /dev/null 2>&1; then
+        log "Backend already exists (s3://$BUCKET), skipping creation"
+    else
+        log "Creating Terraform backend (S3 + DynamoDB)..."
+        cd /infra/backend
+        terraform init
+        terraform apply -auto-approve
+        cd /infra
+        log "Backend created"
+    fi
 }
 
 deploy_infra() {
