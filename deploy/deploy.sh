@@ -81,6 +81,32 @@ push_images() {
     log "Images pushed to ECR"
 }
 
+deploy_app() {
+    log "Deploying app with Helm..."
+
+    ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    REGION=$(cd /infra/environments/$ENV && terraform output -raw region 2>/dev/null || echo "us-east-1")
+    ECR_BASE="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+    CLUSTER_NAME=$(cd /infra/environments/$ENV && terraform output -raw cluster_name)
+
+    VALUES_FILE="/infra/helm/rickmorty/values.yaml"
+    if [ "$ENV" = "prod" ]; then
+        VALUES_FILE="/infra/helm/rickmorty/values-prod.yaml"
+    fi
+
+    helm upgrade --install rickmorty /infra/helm/rickmorty \
+        --namespace rickmorty \
+        --create-namespace \
+        --set backend.image="$ECR_BASE/$CLUSTER_NAME/backend:latest" \
+        --set frontend.image="$ECR_BASE/$CLUSTER_NAME/frontend:latest" \
+        -f "$VALUES_FILE" \
+        --wait --timeout 300s
+
+    log "App deployed. Getting ALB URL..."
+    sleep 10
+    kubectl get ingress -n rickmorty
+}
+
 show_status() {
     cd /infra/environments/$ENV
     terraform init -input=false > /dev/null 2>&1
@@ -109,6 +135,7 @@ case "$ACTION" in
         init_backend
         deploy_infra
         push_images
+        deploy_app
         show_status
         log "Done! Your app is running on EKS."
         ;;

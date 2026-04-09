@@ -98,10 +98,11 @@ make deploy
 This single command:
 1. Builds a Docker container with all prerequisites (Terraform, kubectl, Helm, AWS CLI)
 2. Creates the S3 backend for Terraform state (skips if already exists)
-3. Deploys all AWS services (VPC, EKS, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray)
+3. Deploys all AWS services (VPC, EKS, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Config, GuardDuty)
 4. Generates a secure DB password automatically
 5. Builds and pushes app images to ECR (auto-login)
-6. Configures kubectl and shows cluster status
+6. Installs the Helm chart (Deployments, Services, Ingress, HPA, PDB, NetworkPolicies)
+7. Shows the ALB URL to access the app
 
 ### 3. Check status
 
@@ -167,6 +168,10 @@ rickmorty-cloud/
 ├── environments/
 │   ├── dev/                       # Spot, 2 AZs, minimal
 │   └── prod/                      # On-demand, 3 AZs, HA
+├── helm/rickmorty/                # Helm chart for app deployment
+│   ├── templates/                 # Deployments, Services, Ingress, HPA, PDB, NetworkPolicies
+│   ├── values.yaml                # Dev defaults
+│   └── values-prod.yaml           # Prod overrides (more replicas, resources)
 ├── app/
 │   ├── backend/                   # FastAPI + Poetry + 13 tests
 │   └── frontend/                  # Next.js 16 + shadcn/ui + dark mode

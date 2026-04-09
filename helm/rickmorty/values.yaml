@@ -1,0 +1,43 @@
+# Default values (dev)
+
+namespace: rickmorty
+
+backend:
+  image: ""
+  replicas: 2
+  port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  hpa:
+    minReplicas: 2
+    maxReplicas: 10
+    cpuTarget: 70
+  serviceAccount:
+    roleArn: ""
+
+frontend:
+  image: ""
+  replicas: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+    cpuTarget: 70
+
+ingress:
+  enabled: true
+  scheme: internet-facing
+  targetType: ip
+  healthCheckPath: /healthz
