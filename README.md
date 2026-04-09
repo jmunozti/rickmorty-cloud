@@ -1,76 +1,78 @@
 # rickmorty-cloud
 
-> Rick and Morty Explorer on AWS — 12 Terraform modules, EKS, RDS, Redis, S3, CloudFront, WAF, and more
+> Rick and Morty Explorer on AWS — 14 Terraform modules, EKS, RDS, Redis, S3, CloudFront, WAF, X-Ray, and more
 
 **Status: Infrastructure code complete. Pending AWS deployment and live testing.**
 
-All 12 Terraform modules are written, validated (`terraform validate`), and security-scanned. The app (FastAPI + Next.js) is tested locally with 13 passing tests. AWS deployment is next.
+All Terraform modules are written, validated (`terraform validate`), and security-scanned (tfsec + checkov). The app (FastAPI + Next.js) is tested locally with 13 passing tests. AWS deployment is next.
 
-A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + Next.js) on AWS EKS, with every production service you'd expect: database, cache, CDN, firewall, audit trail, monitoring, and secrets management.
-
-## Why This Project
-
-This is how real companies run on AWS. Every module follows AWS Well-Architected best practices:
-
-- **12 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Observability
-- **Remote state** — S3 with KMS encryption + DynamoDB locking
-- **Multi-environment** — Dev (spot, 2 AZs, $minimal) vs Prod (on-demand, 3 AZs, HA)
-- **Security** — WAF, KMS encryption, IRSA, VPC flow logs, CloudTrail, non-root containers, ECR scan-on-push
-- **Observability** — CloudWatch dashboards + alarms, X-Ray tracing, Prometheus
-- **Cost optimization** — Spot instances in dev, S3 lifecycle policies, ElastiCache free tier
+A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + Next.js) on AWS EKS, with every production service you'd expect: database, cache, CDN, firewall, audit trail, tracing, monitoring, and secrets management.
 
 ## Architecture
 
 ![Architecture](docs/architecture.png)
 
+## Why This Project
+
+This is how real companies run on AWS. Every module follows AWS Well-Architected best practices:
+
+- **14 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray
+- **One-command deploy** — Docker container handles all prerequisites, `make deploy` does everything
+- **Remote state** — S3 with KMS encryption + DynamoDB locking
+- **Multi-environment** — Dev (spot, 2 AZs, minimal) vs Prod (on-demand, 3 AZs, HA)
+- **Security** — WAF (managed rules + rate limiting), KMS encryption, IRSA, VPC flow logs, CloudTrail audit, non-root containers, ECR scan-on-push, Secrets Manager
+- **Observability** — CloudWatch dashboards + alarms, X-Ray distributed tracing
+- **Cost optimization** — Spot instances in dev, S3 lifecycle policies (Standard → IA → Glacier)
+
 ## The App
 
-**Rick and Morty Explorer** — browse characters from the Rick and Morty API, search, and save favorites to PostgreSQL. Images cached in Redis, served via CloudFront.
+**Rick and Morty Explorer** — browse characters from the Rick and Morty API, search, and save favorites to PostgreSQL. Cached with Redis, served via CloudFront.
 
 | Layer | Technology |
 |-------|-----------|
 | Frontend | Next.js 16 + TypeScript + Tailwind CSS + shadcn/ui + pnpm |
-| Backend | FastAPI + Python 3.12 |
-| Database | RDS PostgreSQL 16 (free tier) |
-| Cache | ElastiCache Redis 7.1 (free tier) |
+| Backend | FastAPI + Python 3.12 + Poetry |
+| Database | RDS PostgreSQL 16 (encrypted, automated backups) |
+| Cache | ElastiCache Redis 7.1 |
 | Storage | S3 + CloudFront CDN |
 
-## AWS Services Used
+## AWS Services
 
 | Service | Module | Purpose |
 |---------|--------|---------|
-| **EKS** | `modules/eks` | Kubernetes cluster + managed node groups |
-| **VPC** | `modules/vpc` | Networking: public/private subnets, NAT, flow logs |
-| **IAM** | `modules/iam` | Cluster/node roles, IRSA for ALB + External Secrets |
-| **ALB** | `modules/alb` | Load Balancer Controller via Helm |
-| **RDS** | `modules/rds` | PostgreSQL 16, encrypted, automated backups |
-| **ElastiCache** | `modules/redis` | Redis 7.1 cache (free tier) |
-| **S3** | `modules/s3` | Asset storage with lifecycle policies + versioning |
-| **CloudFront** | `modules/cloudfront` | CDN with OAC for S3, HTTPS redirect |
-| **WAF** | `modules/waf` | Managed rules + rate limiting on ALB |
-| **CloudTrail** | `modules/cloudtrail` | API audit trail to S3 |
-| **ECR** | `modules/ecr` | Container registry, scan-on-push, immutable tags |
-| **Secrets Manager** | `modules/secrets` | App secrets + External Secrets Operator manifests |
-| **CloudWatch** | `modules/observability` | Dashboard, alarms (CPU, 5xx), X-Ray tracing |
+| **EKS** | `modules/eks` | Kubernetes cluster, managed node groups, OIDC, KMS envelope encryption |
+| **VPC** | `modules/vpc` | Public/private subnets, NAT Gateway per AZ, VPC Flow Logs to CloudWatch |
+| **IAM** | `modules/iam` | Cluster/node roles, IRSA for ALB Controller + External Secrets Operator |
+| **ALB** | `modules/alb` | AWS Load Balancer Controller via Helm |
+| **RDS** | `modules/rds` | PostgreSQL 16, encrypted at rest, automated backups, multi-AZ (prod) |
+| **ElastiCache** | `modules/redis` | Redis 7.1 cache layer |
+| **S3** | `modules/s3` | Asset storage, versioning, lifecycle policies (→ IA → Glacier), IRSA policy |
+| **CloudFront** | `modules/cloudfront` | CDN with Origin Access Control, HTTPS redirect, WAF integration |
+| **WAF** | `modules/waf` | AWS Managed Rules (Common + Bad Inputs), IP rate limiting |
+| **CloudTrail** | `modules/cloudtrail` | API audit trail to encrypted S3 bucket |
+| **ECR** | `modules/ecr` | Container registry, scan-on-push, immutable tags, lifecycle (keep last 10) |
+| **Secrets Manager** | `modules/secrets` | App secrets + External Secrets Operator K8s manifests |
+| **CloudWatch** | `modules/observability` | Dashboard (EKS CPU, RDS CPU, ALB requests, Redis hits), alarms (high CPU, 5xx) |
+| **X-Ray** | `modules/observability` | Distributed tracing with sampling rules and trace groups |
 
 ## Dev vs Prod
 
 | | Dev | Prod |
 |--|-----|------|
 | AZs | 2 | 3 |
-| Nodes | t3.medium SPOT (1-4) | t3.large ON_DEMAND (3-10) |
-| RDS | db.t3.micro, single AZ | db.t3.medium, multi AZ |
-| API endpoint | Public | Private |
+| Nodes | t3.small SPOT (1-4) | t3.large ON_DEMAND (3-10) |
+| RDS | db.t3.micro, single AZ | db.t3.medium, multi-AZ, 14-day backups |
+| Redis | cache.t3.micro | cache.t3.small |
+| WAF rate limit | 2,000 req/5min | 5,000 req/5min |
+| EKS API | Public | Private only |
 | VPC CIDR | 10.0.0.0/16 | 10.1.0.0/16 |
 
 ## Prerequisites
 
-- [Docker](https://www.docker.com/) — that's it. Everything else runs inside the deploy container.
-- An AWS account with an IAM user that has permissions for: EKS, EC2, VPC, RDS, ElastiCache, S3, CloudFront, WAF, CloudTrail, Secrets Manager, ECR, CloudWatch, IAM, DynamoDB, KMS.
+- **Docker** — that's it. Everything else runs inside the deploy container.
+- An AWS account with IAM credentials.
 
 ## Usage
-
-The only prerequisite is **Docker**. Everything else (Terraform, kubectl, Helm, AWS CLI) runs inside a deploy container.
 
 ### 1. Set your AWS credentials
 
@@ -87,11 +89,11 @@ make deploy
 ```
 
 This single command:
-1. Builds a Docker container with all prerequisites
-2. Creates the S3 backend for Terraform state
-3. Deploys all 12 AWS services (VPC, EKS, RDS, Redis, S3, CloudFront, WAF, etc.)
-4. Generates a random DB password (or uses `TF_VAR_db_password` if set)
-5. Builds and pushes app images to ECR (auto-login, no manual steps)
+1. Builds a Docker container with all prerequisites (Terraform, kubectl, Helm, AWS CLI)
+2. Creates the S3 backend for Terraform state (skips if already exists)
+3. Deploys all AWS services (VPC, EKS, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray)
+4. Generates a secure DB password automatically
+5. Builds and pushes app images to ECR (auto-login)
 6. Configures kubectl and shows cluster status
 
 ### 3. Check status
@@ -136,31 +138,31 @@ Every push to `main` or `develop` runs 5 parallel jobs:
 ## Project Structure
 
 ```
-aws/
-├── backend/                     # S3 + DynamoDB remote state
+rickmorty-cloud/
+├── deploy/                        # Deploy container (Dockerfile + script)
+├── backend/                       # S3 + DynamoDB for Terraform remote state
 ├── modules/
-│   ├── vpc/                     # VPC, subnets, NAT, IGW, flow logs
-│   ├── eks/                     # EKS, node groups, OIDC, KMS
-│   ├── iam/                     # Roles, IRSA (ALB, External Secrets)
-│   ├── alb/                     # AWS Load Balancer Controller
-│   ├── rds/                     # PostgreSQL 16, encrypted, backups
-│   ├── redis/                   # ElastiCache Redis 7.1
-│   ├── s3/                      # Asset bucket + lifecycle + IRSA policy
-│   ├── cloudfront/              # CDN + OAC + S3 policy
-│   ├── waf/                     # Managed rules + rate limiting
-│   ├── cloudtrail/              # API audit to S3
-│   ├── ecr/                     # Container registry, scan-on-push
-│   ├── secrets/                 # Secrets Manager + External Secrets
-│   └── observability/           # CloudWatch dashboard + alarms + X-Ray
+│   ├── vpc/                       # VPC, subnets, NAT, IGW, flow logs
+│   ├── eks/                       # EKS, node groups, OIDC, KMS
+│   ├── iam/                       # Roles, IRSA (ALB, External Secrets)
+│   ├── alb/                       # AWS Load Balancer Controller
+│   ├── rds/                       # PostgreSQL 16, encrypted, backups
+│   ├── redis/                     # ElastiCache Redis 7.1
+│   ├── s3/                        # Asset bucket + lifecycle + IRSA policy
+│   ├── cloudfront/                # CDN + OAC + S3 policy
+│   ├── waf/                       # Managed rules + rate limiting
+│   ├── cloudtrail/                # API audit to S3
+│   ├── ecr/                       # Container registry, scan-on-push
+│   ├── secrets/                   # Secrets Manager + External Secrets
+│   └── observability/             # CloudWatch dashboard + alarms + X-Ray
 ├── environments/
-│   ├── dev/                     # Spot, 2 AZs, minimal
-│   └── prod/                    # On-demand, 3 AZs, HA
+│   ├── dev/                       # Spot, 2 AZs, minimal
+│   └── prod/                      # On-demand, 3 AZs, HA
 ├── app/
-│   ├── backend/                 # FastAPI (Rick and Morty API + favorites)
-│   └── frontend/                # Next.js 16 + shadcn/ui
-├── .github/workflows/ci.yml
-├── Makefile
-└── README.md
+│   ├── backend/                   # FastAPI + Poetry + 13 tests
+│   └── frontend/                  # Next.js 16 + shadcn/ui + dark mode
+├── .github/workflows/ci.yml      # 5 parallel CI jobs
+└── Makefile                       # make deploy / make destroy
 ```
 
 ## License
