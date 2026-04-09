@@ -37,7 +37,7 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 - **High availability** — Aurora multi-AZ with read replica, Redis auto-failover, NAT per AZ, min 3 nodes in prod
 - **Security** — WAF (managed rules + rate limiting), KMS encryption, IRSA, VPC flow logs, CloudTrail, GuardDuty, non-root containers, ECR scan-on-push, Secrets Manager
 - **Observability** — CloudWatch dashboards + alarms, X-Ray distributed tracing, SNS notifications
-- **Cost optimization** — Aurora Serverless v2 (scales to near-zero), Spot instances in dev, S3 lifecycle policies (→ IA → Glacier)
+- **Cost optimization** — Aurora Serverless v2 (scales to near-zero), Spot instances in dev, S3 lifecycle policies (Standard → Standard-IA → Glacier)
 - **Automated backups** — AWS Backup with daily + weekly plans, cold storage lifecycle
 
 ## The App
@@ -63,7 +63,7 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 | **Aurora Serverless v2** | `modules/rds` | PostgreSQL 16, auto-scaling ACUs, encrypted, read replica (prod) |
 | **AWS Backup** | `modules/backup` | Daily + weekly backup plans, cold storage lifecycle |
 | **ElastiCache** | `modules/redis` | Redis 7.1 cache layer |
-| **S3** | `modules/s3` | Asset storage, versioning, lifecycle policies (→ IA → Glacier), IRSA policy |
+| **S3** | `modules/s3` | Asset storage, versioning, lifecycle policies (Standard → Standard-IA → Glacier), IRSA policy |
 | **CloudFront** | `modules/cloudfront` | CDN with Origin Access Control, HTTPS redirect, WAF integration |
 | **WAF** | `modules/waf` | AWS Managed Rules (Common + Bad Inputs), IP rate limiting |
 | **CloudTrail** | `modules/cloudtrail` | API audit trail to encrypted S3 bucket |
