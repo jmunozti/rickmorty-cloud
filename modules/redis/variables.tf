@@ -19,7 +19,13 @@ variable "allowed_security_group_ids" {
 }
 
 variable "node_type" {
-  description = "ElastiCache node type (cache.t3.micro for free tier)"
+  description = "ElastiCache node type"
   type        = string
   default     = "cache.t3.micro"
+}
+
+variable "num_replicas" {
+  description = "Number of read replicas (0 for single node, 1+ for HA with automatic failover)"
+  type        = number
+  default     = 0
 }

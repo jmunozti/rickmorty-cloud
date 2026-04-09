@@ -1,9 +1,9 @@
 output "endpoint" {
-  description = "Redis endpoint"
-  value       = aws_elasticache_cluster.this.cache_nodes[0].address
+  description = "Redis primary endpoint"
+  value       = aws_elasticache_replication_group.this.primary_endpoint_address
 }
 
 output "port" {
   description = "Redis port"
-  value       = aws_elasticache_cluster.this.cache_nodes[0].port
+  value       = 6379
 }

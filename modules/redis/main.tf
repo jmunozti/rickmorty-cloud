@@ -1,4 +1,4 @@
-# ElastiCache Redis (free tier: cache.t3.micro)
+# ElastiCache Redis with optional replication for HA
 resource "aws_elasticache_subnet_group" "this" {
   name       = "${var.name}-redis"
   subnet_ids = var.subnet_ids
@@ -29,16 +29,23 @@ resource "aws_security_group" "redis" {
   }
 }
 
-resource "aws_elasticache_cluster" "this" {
-  cluster_id           = "${var.name}-redis"
+resource "aws_elasticache_replication_group" "this" {
+  replication_group_id = "${var.name}-redis"
+  description          = "Redis for ${var.name}"
   engine               = "redis"
   engine_version       = "7.1"
   node_type            = var.node_type
-  num_cache_nodes      = 1
+  num_cache_clusters   = var.num_replicas + 1
   parameter_group_name = "default.redis7"
   port                 = 6379
   subnet_group_name    = aws_elasticache_subnet_group.this.name
   security_group_ids   = [aws_security_group.redis.id]
+
+  automatic_failover_enabled = var.num_replicas > 0
+  multi_az_enabled           = var.num_replicas > 0
+
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = false
 
   tags = {
     Name = "${var.name}-redis"

@@ -62,7 +62,8 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 | AZs | 2 | 3 |
 | Nodes | t3.small SPOT (1-4) | t3.large ON_DEMAND (3-10) |
 | RDS | db.t3.micro, single AZ | db.t3.medium, multi-AZ, 14-day backups |
-| Redis | cache.t3.micro | cache.t3.small |
+| Redis | cache.t3.micro, single node | cache.t3.small, 1 replica, auto-failover, multi-AZ |
+| NAT Gateway | 1 per AZ (2) | 1 per AZ (3) |
 | WAF rate limit | 2,000 req/5min | 5,000 req/5min |
 | EKS API | Public | Private only |
 | VPC CIDR | 10.0.0.0/16 | 10.1.0.0/16 |

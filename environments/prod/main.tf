@@ -116,7 +116,7 @@ module "rds" {
   backup_retention_days      = 14
 }
 
-# --- Redis ---
+# --- Redis (HA: 1 primary + 1 replica, multi-AZ, automatic failover) ---
 module "redis" {
   source                     = "../../modules/redis"
   name                       = local.cluster_name
@@ -124,6 +124,7 @@ module "redis" {
   subnet_ids                 = module.vpc.private_subnet_ids
   allowed_security_group_ids = [module.eks.cluster_security_group_id]
   node_type                  = "cache.t3.small"
+  num_replicas               = 1
 }
 
 # --- ECR ---
