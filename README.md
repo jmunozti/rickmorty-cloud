@@ -21,40 +21,7 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 
 ## Architecture
 
-```mermaid
-graph TB
-    User -->|HTTPS| CF[CloudFront CDN]
-    CF -->|Static assets| S3[S3 Bucket]
-    CF -->|API requests| WAF[WAF]
-    WAF --> ALB[Application Load Balancer]
-
-    subgraph VPC
-        subgraph Public Subnets
-            ALB
-            NAT[NAT Gateways]
-        end
-        subgraph Private Subnets
-            EKS[EKS Cluster]
-            subgraph Pods
-                FE[Next.js Frontend]
-                BE[FastAPI Backend]
-            end
-            RDS[(RDS PostgreSQL)]
-            REDIS[(ElastiCache Redis)]
-        end
-    end
-
-    ALB --> FE
-    FE --> BE
-    BE --> RDS
-    BE --> REDIS
-    BE -->|Rick & Morty API| Internet
-
-    ECR[ECR] -->|Images| EKS
-    SM[Secrets Manager] -->|Secrets| EKS
-    CT[CloudTrail] -->|Audit| S3_LOGS[S3 Logs]
-    CW[CloudWatch + X-Ray] -->|Monitoring| EKS
-```
+![Architecture](docs/architecture.png)
 
 ## The App
 
