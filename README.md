@@ -1,4 +1,4 @@
-# rickmorty-cloud
+# rickmorty-cloud [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > Rick and Morty Explorer on AWS — 14 Terraform modules, EKS, RDS, Redis, S3, CloudFront, WAF, X-Ray, and more
 
