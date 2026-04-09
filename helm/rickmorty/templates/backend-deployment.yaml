@@ -14,11 +14,18 @@ spec:
     metadata:
       labels:
         app: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
     spec:
       serviceAccountName: backend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
       containers:
         - name: backend
           image: {{ .Values.backend.image }}
+          imagePullPolicy: Always
           ports:
             - containerPort: {{ .Values.backend.port }}
           env:

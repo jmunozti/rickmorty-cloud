@@ -64,7 +64,7 @@ variable "multi_az" {
 variable "skip_final_snapshot" {
   description = "Skip final snapshot on deletion"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "backup_retention_days" {

@@ -45,7 +45,7 @@ resource "aws_elasticache_replication_group" "this" {
   multi_az_enabled           = var.num_replicas > 0
 
   at_rest_encryption_enabled = true
-  transit_encryption_enabled = false
+  transit_encryption_enabled = true
 
   tags = {
     Name = "${var.name}-redis"

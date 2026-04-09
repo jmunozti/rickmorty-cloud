@@ -14,10 +14,17 @@ spec:
     metadata:
       labels:
         app: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
       containers:
         - name: frontend
           image: {{ .Values.frontend.image }}
+          imagePullPolicy: Always
           ports:
             - containerPort: {{ .Values.frontend.port }}
           env:
