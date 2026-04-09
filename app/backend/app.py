@@ -7,9 +7,13 @@ from contextlib import contextmanager
 import psycopg2
 import psycopg2.pool
 import requests as http_requests
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rickmorty-api")
@@ -18,15 +22,46 @@ DB_HOST = os.environ.get("DB_HOST", "localhost")
 DB_USER = os.environ.get("DB_USER", "dbadmin")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "changeme")
 DB_NAME = os.environ.get("DB_NAME", "appdb")
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
+RATE_LIMIT = os.environ.get("RATE_LIMIT", "60/minute")
 RICK_MORTY_API = "https://rickandmortyapi.com/api"
 
-app = FastAPI(title="Rick and Morty Explorer API", version="1.0.0")
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
+app = FastAPI(
+    title="Rick and Morty Explorer API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url=None,
+)
+
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"error": "Too many requests. Please slow down."})
+
+
+# Security headers middleware
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type"],
 )
 
 _pool = None
@@ -84,7 +119,8 @@ def health_check():
 # --- Rick and Morty proxy endpoints ---
 
 @app.get("/characters")
-def list_characters(page: int = 1, name: str | None = Query(None)):
+@limiter.limit(RATE_LIMIT)
+def list_characters(request: Request, page: int = 1, name: str | None = Query(None)):
     params: dict = {"page": page}
     if name:
         params["name"] = name
@@ -94,8 +130,18 @@ def list_characters(page: int = 1, name: str | None = Query(None)):
     return res.json()
 
 
+@app.get("/characters/{character_id}")
+@limiter.limit(RATE_LIMIT)
+def get_character(request: Request, character_id: int):
+    res = http_requests.get(f"{RICK_MORTY_API}/character/{character_id}", timeout=5)
+    if res.status_code != 200:
+        raise HTTPException(status_code=res.status_code, detail="Character not found")
+    return res.json()
+
+
 @app.get("/stats")
-def get_stats():
+@limiter.limit("10/minute")
+def get_stats(request: Request):
     """Aggregate stats from the Rick and Morty API."""
     res = http_requests.get(f"{RICK_MORTY_API}/character", params={"page": 1}, timeout=5)
     if res.status_code != 200:
@@ -103,12 +149,11 @@ def get_stats():
 
     total = res.json().get("info", {}).get("count", 0)
 
-    # Sample first 100 characters for stats
     status_counts: dict[str, int] = {}
     species_counts: dict[str, int] = {}
     gender_counts: dict[str, int] = {}
 
-    for page_num in range(1, 6):  # 5 pages = 100 characters
+    for page_num in range(1, 6):
         page_res = http_requests.get(
             f"{RICK_MORTY_API}/character", params={"page": page_num}, timeout=5
         )
@@ -127,14 +172,6 @@ def get_stats():
     }
 
 
-@app.get("/characters/{character_id}")
-def get_character(character_id: int):
-    res = http_requests.get(f"{RICK_MORTY_API}/character/{character_id}", timeout=5)
-    if res.status_code != 200:
-        raise HTTPException(status_code=res.status_code, detail="Character not found")
-    return res.json()
-
-
 # --- Favorites (stored in PostgreSQL) ---
 
 class FavoriteRequest(BaseModel):
@@ -144,20 +181,27 @@ class FavoriteRequest(BaseModel):
 
 
 @app.get("/favorites")
-def list_favorites():
+@limiter.limit(RATE_LIMIT)
+def list_favorites(request: Request):
     try:
         with get_db() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT character_id, name, image, created_at FROM favorites ORDER BY created_at DESC")
+            cur.execute(
+                "SELECT character_id, name, image, created_at FROM favorites ORDER BY created_at DESC"
+            )
             rows = cur.fetchall()
             cur.close()
-            return [{"character_id": r[0], "name": r[1], "image": r[2], "created_at": str(r[3])} for r in rows]
+            return [
+                {"character_id": r[0], "name": r[1], "image": r[2], "created_at": str(r[3])}
+                for r in rows
+            ]
     except Exception:
         raise HTTPException(status_code=500, detail="Database unavailable") from None
 
 
 @app.post("/favorites")
-def add_favorite(body: FavoriteRequest):
+@limiter.limit("30/minute")
+def add_favorite(request: Request, body: FavoriteRequest):
     try:
         with get_db() as conn:
             cur = conn.cursor()
@@ -174,7 +218,8 @@ def add_favorite(body: FavoriteRequest):
 
 
 @app.delete("/favorites/{character_id}")
-def remove_favorite(character_id: int):
+@limiter.limit("30/minute")
+def remove_favorite(request: Request, character_id: int):
     try:
         with get_db() as conn:
             cur = conn.cursor()
