@@ -199,3 +199,33 @@ module "secrets" {
     }
   }
 }
+
+# --- Parameter Store (non-secret config) ---
+module "parameters" {
+  source      = "../../modules/parameter-store"
+  name        = local.cluster_name
+  environment = "prod"
+
+  parameters = {
+    "app/log-level" = {
+      value       = "warn"
+      description = "Application log level"
+    }
+    "app/api-url" = {
+      value       = "https://rickandmortyapi.com/api"
+      description = "Rick and Morty API base URL"
+    }
+    "app/cache-ttl" = {
+      value       = "3600"
+      description = "Redis cache TTL in seconds"
+    }
+    "app/max-favorites" = {
+      value       = "100"
+      description = "Max favorites per user"
+    }
+    "app/cors-origins" = {
+      value       = "https://rickmorty.example.com"
+      description = "Allowed CORS origins"
+    }
+  }
+}

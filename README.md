@@ -16,7 +16,7 @@ A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + 
 
 This is how real companies run on AWS. Every module follows AWS Well-Architected best practices:
 
-- **15 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Compliance
+- **16 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Compliance
 - **SOC 2 ready** — AWS Config (6 rules), GuardDuty threat detection, CloudTrail audit, SNS security alerts
 - **One-command deploy** — Docker container handles all prerequisites, `make deploy` does everything
 - **Remote state** — S3 with KMS encryption + DynamoDB locking
@@ -59,6 +59,7 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 | **AWS Config** | `modules/compliance` | 6 compliance rules (encryption, public access, MFA, CloudTrail) |
 | **GuardDuty** | `modules/compliance` | Threat detection and continuous security monitoring |
 | **SNS** | `modules/compliance` | Security alert notifications to email |
+| **SSM Parameter Store** | `modules/parameter-store` | Non-secret config per environment (log level, cache TTL, CORS) |
 
 ## Dev vs Prod
 
@@ -161,7 +162,8 @@ rickmorty-cloud/
 │   ├── ecr/                       # Container registry, scan-on-push
 │   ├── secrets/                   # Secrets Manager + External Secrets
 │   ├── observability/             # CloudWatch dashboard + alarms + X-Ray
-│   └── compliance/                # AWS Config (6 rules) + GuardDuty + SNS alerts
+│   ├── compliance/                # AWS Config (6 rules) + GuardDuty + SNS alerts
+│   └── parameter-store/           # SSM Parameter Store (config per environment)
 ├── environments/
 │   ├── dev/                       # Spot, 2 AZs, minimal
 │   └── prod/                      # On-demand, 3 AZs, HA
