@@ -161,10 +161,17 @@ module "cloudtrail" {
 
 # --- Observability (CloudWatch + X-Ray) ---
 module "observability" {
-  source       = "../../modules/observability"
-  name         = local.cluster_name
-  region       = var.region
-  cluster_name = local.cluster_name
+  source        = "../../modules/observability"
+  name          = local.cluster_name
+  region        = var.region
+  cluster_name  = local.cluster_name
+  sns_topic_arn = module.compliance.sns_topic_arn
+}
+
+# --- SOC 2 Compliance (Config + GuardDuty + Config Rules) ---
+module "compliance" {
+  source = "../../modules/compliance"
+  name   = local.cluster_name
 }
 
 # --- Secrets Manager ---

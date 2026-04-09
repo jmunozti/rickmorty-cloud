@@ -15,3 +15,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "alert_email" {
+  description = "Email for SOC 2 security alerts (pass via TF_VAR_alert_email)"
+  type        = string
+  default     = ""
+}

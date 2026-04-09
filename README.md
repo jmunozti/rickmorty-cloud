@@ -16,12 +16,14 @@ A complete cloud platform that deploys a Rick and Morty Explorer app (FastAPI + 
 
 This is how real companies run on AWS. Every module follows AWS Well-Architected best practices:
 
-- **14 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray
+- **15 Terraform modules** — VPC, EKS, IAM, ALB, RDS, Redis, S3, CloudFront, WAF, CloudTrail, ECR, Secrets Manager, CloudWatch, X-Ray, Compliance
+- **SOC 2 ready** — AWS Config (6 rules), GuardDuty threat detection, CloudTrail audit, SNS security alerts
 - **One-command deploy** — Docker container handles all prerequisites, `make deploy` does everything
 - **Remote state** — S3 with KMS encryption + DynamoDB locking
 - **Multi-environment** — Dev (spot, 2 AZs, minimal) vs Prod (on-demand, 3 AZs, HA)
-- **Security** — WAF (managed rules + rate limiting), KMS encryption, IRSA, VPC flow logs, CloudTrail audit, non-root containers, ECR scan-on-push, Secrets Manager
-- **Observability** — CloudWatch dashboards + alarms, X-Ray distributed tracing
+- **High availability** — Multi-AZ RDS, Redis auto-failover, NAT per AZ, min 3 nodes in prod
+- **Security** — WAF (managed rules + rate limiting), KMS encryption, IRSA, VPC flow logs, CloudTrail, GuardDuty, non-root containers, ECR scan-on-push, Secrets Manager
+- **Observability** — CloudWatch dashboards + alarms, X-Ray distributed tracing, SNS notifications
 - **Cost optimization** — Spot instances in dev, S3 lifecycle policies (Standard → IA → Glacier)
 
 ## The App
@@ -54,6 +56,9 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 | **Secrets Manager** | `modules/secrets` | App secrets + External Secrets Operator K8s manifests |
 | **CloudWatch** | `modules/observability` | Dashboard (EKS CPU, RDS CPU, ALB requests, Redis hits), alarms (high CPU, 5xx) |
 | **X-Ray** | `modules/observability` | Distributed tracing with sampling rules and trace groups |
+| **AWS Config** | `modules/compliance` | 6 compliance rules (encryption, public access, MFA, CloudTrail) |
+| **GuardDuty** | `modules/compliance` | Threat detection and continuous security monitoring |
+| **SNS** | `modules/compliance` | Security alert notifications to email |
 
 ## Dev vs Prod
 
@@ -155,7 +160,8 @@ rickmorty-cloud/
 │   ├── cloudtrail/                # API audit to S3
 │   ├── ecr/                       # Container registry, scan-on-push
 │   ├── secrets/                   # Secrets Manager + External Secrets
-│   └── observability/             # CloudWatch dashboard + alarms + X-Ray
+│   ├── observability/             # CloudWatch dashboard + alarms + X-Ray
+│   └── compliance/                # AWS Config (6 rules) + GuardDuty + SNS alerts
 ├── environments/
 │   ├── dev/                       # Spot, 2 AZs, minimal
 │   └── prod/                      # On-demand, 3 AZs, HA
