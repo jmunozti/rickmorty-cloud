@@ -39,6 +39,15 @@ This is how real companies run on AWS. Every module follows AWS Well-Architected
 - **Cost optimization** — Aurora Serverless v2 (scales to near-zero), Spot instances in dev, S3 lifecycle policies (Standard → Standard-IA → Glacier)
 - **Automated backups** — AWS Backup with daily + weekly plans, cold storage lifecycle
 
+## Architecture Decision Records
+
+Key design decisions are documented in [`docs/adr/`](docs/adr/):
+
+| ADR | Title | Summary |
+|-----|-------|---------|
+| [001](docs/adr/001-use-eks-over-ecs.md) | Use Amazon EKS over ECS/Fargate | Portability + security control + CNCF ecosystem compatibility |
+| [002](docs/adr/002-spot-strategy-by-environment.md) | Spot in Dev, On-Demand in Prod | ~70% cost savings in dev without sacrificing prod reliability |
+
 ## The App
 
 **Rick and Morty Explorer** — browse characters from the Rick and Morty API, search, and save favorites to PostgreSQL. Cached with Redis, served via CloudFront.
